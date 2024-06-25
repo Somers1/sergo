@@ -1,0 +1,17 @@
+[global]
+timezone = "Australia/Sydney"
+
+[sergo]
+handler_engine = "sergo.handler.FastAPIHandler"
+database_engine = "sergo.connection.AzureSQLConnection"
+query_engine = "sergo.query.TransactSQLQuery"
+log_level = "INFO"
+
+[database]
+host = ""
+name = ""
+user = ""
+pass = ""
+port = 0
+
+[environment]

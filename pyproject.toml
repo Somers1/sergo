@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sergo"
+version = "0.1.0"
+description = "A serverless web API framework"
+authors = [{ name = "Jake Somerville", email = "somerville191197@gmail.com" }]
+dependencies = [
+    "toml"
+]
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/somers1/sergo"
+"Bug Tracker" = "https://github.com/somers1/sergo/issues"
+
+[project.scripts]
+sergo-admin = "sergo.cli:main"
+
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["sergo"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+sergo = ["project_template/**/*"]
