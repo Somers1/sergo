@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Dict, List, Any
 from sergo.query import Query
 from sergo import fields
@@ -11,30 +12,55 @@ class Serializer:
     def many(self):
         return isinstance(self.data, list)
 
+    @cached_property
+    def objects(self):
+        return self.to_internal_value()
+
     def __init__(self, data: Dict | Query | List[Dict], instance=None):
         self.raw_data = data
-        self.data = self.serialize()
+        self.data = self.to_representation()
         self.instance = instance
 
-    def serialize(self) -> List[Dict[str, Any]] | Dict[str, Any]:
+    def to_representation(self) -> List[Dict[str, Any]] | Dict[str, Any]:
         if isinstance(self.raw_data, Query):
             data = self.raw_data.execute()
         else:
             data = self.raw_data
         if isinstance(data, list):
-            return [self.serialize_obj(obj) for obj in data]
+            return [self.represent_obj(obj) for obj in data]
         else:
-            return self.serialize_obj(data)
+            return self.represent_obj(data)
 
-    def serialize_obj(self, obj: Dict[str, Any]) -> Dict[str, Any]:
+    def represent_obj(self, obj: Any) -> Dict[str, Any]:
         if not self.model_class:
             raise ValueError("model_class must be set")
         if self.fields == ['__all__']:
             self.fields = list(self.model_class._meta.fields.keys())
         return {field: self.get_field_value(obj, field) for field in self.fields}
 
-    def get_field_value(self, obj: Dict[str, Any], field: str) -> Any:
-        value = obj.get(field) if isinstance(obj, dict) else getattr(obj, field, None)
+    def get_field_value(self, obj: Any, field: str) -> Any:
+        value = getattr(obj, field, None) if not isinstance(obj, dict) else obj.get(field)
+        field_instance = self.model_class._meta.get_field(field)
+        if isinstance(field_instance, fields.MethodField):
+            return field_instance.to_representation(value, field)
+        else:
+            return field_instance.to_representation(value)
+
+    def to_internal_value(self) -> Dict[str, Any] | List[Dict[str, Any]]:
+        if isinstance(self.data, list):
+            return [self.model_class(**self.internal_value_obj(item)) for item in self.data]
+        else:
+            return self.model_class(**self.internal_value_obj(self.data))
+
+    def internal_value_obj(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.model_class:
+            raise ValueError("model_class must be set")
+        if self.fields == ['__all__']:
+            self.fields = list(self.model_class._meta.fields.keys())
+        return {field: self.get_internal_value(data, field) for field in self.fields}
+
+    def get_internal_value(self, data: Dict[str, Any], field: str) -> Any:
+        value = data.get(field)
         field_instance = self.model_class._meta.get_field(field)
         if isinstance(field_instance, fields.MethodField):
             return field_instance.to_internal_value(value, field)
