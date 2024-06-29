@@ -63,8 +63,6 @@ class AzureSQLConnection:
             logger.error(f"Error executing many Error: {e}. Attempting slow insert")
             self.cursor.fast_executemany = False
             self.cursor.executemany(query, params)
-        return [dict(zip([column[0] for column in self.cursor.description], row))
-                for row in self.cursor.fetchall()]
 
     def execute(self, query, *params):
         settings.logger.debug(f"Executing query: {query} with params: {params}")
@@ -94,9 +92,8 @@ class AzureSQLConnection:
         columns = ', '.join(insert_list[0].keys())
         placeholders = ', '.join('?' for _ in insert_list[0].values())
         query = f"INSERT INTO {table} ({columns}) OUTPUT INSERTED.id VALUES ({placeholders})"
-        results = self.execute_many_result(query, [list(row.values()) for row in insert_list])
+        self.execute_many_result(query, [list(row.values()) for row in insert_list])
         self.commit()
-        return results
 
     @staticmethod
     def default_query(table):
