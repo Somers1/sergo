@@ -73,6 +73,13 @@ class TransactSQLQuery(BaseQuery):
         self.query = ' GROUP BY'.join(split_query)
         return self
 
+    def first(self):
+        self.query = self.query.replace('SELECT', 'SELECT TOP 1')
+        try:
+            return self.list()[0]
+        except IndexError:
+            return None
+
     def search(self, field, value):
         if field and value:
             search_string = f"UPPER({field}) LIKE UPPER(?)"
