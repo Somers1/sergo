@@ -16,7 +16,7 @@ class ViewSet:
 
     @property
     def _serializer_class(self):
-        return getattr(self, 'serializer_class', self.model_class.serializer_class)
+        return getattr(self, 'serializer_class', self.model_class.get_serializer_class())
 
     def handle_post(self, request):
         serializer = self._serializer_class(data=request.body)
@@ -47,6 +47,7 @@ class ViewSet:
     def valid_ordering(self, request):
         if ordering := request.query_params.get('ordering', None):
             return [field for field in ordering.split(',') if field.lstrip('-') in getattr(self, 'order_fields', [])]
+        return getattr(self.model_class._meta, 'ordering')
 
     def handle_get(self, request: StandardizedRequest):
         query = Query(self.model_class.objects.query, self.model_class)

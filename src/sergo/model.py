@@ -152,7 +152,7 @@ class Model(metaclass=ModelBase):
             setattr(self, field, value)
 
     @classmethod
-    def serializer_class(cls):
+    def get_serializer_class(cls):
         class _Serializer(Serializer):
             model_class = cls
 
@@ -160,7 +160,7 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def serialize(cls, obj):
-        return cls.serializer_class()(obj)
+        return cls.get_serializer_class()(obj)
 
     def update(self, **kwargs):
         id_field = self._meta.primary_key_field

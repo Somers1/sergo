@@ -110,8 +110,8 @@ class TransactSQLQuery(BaseQuery):
                 operator = 'exact'
             condition = self._build_filter_condition(field, operator, value)
             conditions.append(condition)
-
-        split_query[0] += where_clause + ' AND '.join(conditions)
+        if conditions:
+            split_query[0] += where_clause + ' AND '.join(conditions)
         self.query = ' GROUP BY'.join(split_query)
         return self
 
