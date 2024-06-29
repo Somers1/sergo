@@ -101,7 +101,7 @@ class Manager:
         defaults = defaults or {}
         try:
             instance = self.get(**kwargs)
-            Query(self.query, self.model).filter(id=instance.id).update(**defaults)
+            self.filter(id=instance.id).update(**defaults)
             return self.get(id=instance.id), False
         except errors.DoesNotExist:
             new_data = {**kwargs, **defaults}
@@ -117,9 +117,7 @@ class Manager:
         # return self.from_query(f"SELECT * FROM {self.table_name} WHERE id IN ({place_holders})")
 
     def get(self, **kwargs):
-        query = Query(self.query, self.model)
-        query.filter(**kwargs)
-        result = query.execute()
+        result = self.filter(**kwargs).execute()
         if len(result) > 1:
             raise errors.MultipleObjectsReturned("Multiple objects found")
         try:
@@ -127,14 +125,14 @@ class Manager:
         except IndexError:
             raise errors.DoesNotExist("Object not found")
 
-    def filter(self, **kwargs):
-        return Query(self.query, self.model).filter(**kwargs)
+    def get_queryset(self):
+        return Query(self.query, self.model)
 
-    def from_query(self, query, params=None):
-        return Query(query, self.model, params=params).execute()
+    def filter(self, **kwargs):
+        return self.get_queryset().filter(**kwargs)
 
     def all(self):
-        return Query(self.query, self.model)
+        return self.get_queryset()
 
 
 class Model(metaclass=ModelBase):
