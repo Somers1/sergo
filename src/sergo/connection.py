@@ -1,9 +1,10 @@
 from functools import wraps
-import pyodbc
 import settings
 from sergo import utils
 from settings import logger
 
+
+pydoc = utils.LazyImport('pyodbc')
 
 class AzureSQLConnection:
     CONNECTION_STRING = ('Driver={{ODBC Driver 18 for SQL Server}};'

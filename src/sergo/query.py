@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-
 import settings
 from sergo import utils
 from sergo.connection import connection
@@ -63,13 +62,75 @@ class BaseQuery(ABC):
 
 class TransactSQLQuery(BaseQuery):
 
+    def _build_filter_condition(self, field, operator, value):
+        if operator == 'in':
+            placeholders = ', '.join(['?' for _ in value])
+            condition = f"{field} IN ({placeholders})"
+            self.params.extend(value)
+        elif operator == 'startswith':
+            condition = f"{field} LIKE ?"
+            self.params.append(f"{value}%")
+        elif operator == 'endswith':
+            condition = f"{field} LIKE ?"
+            self.params.append(f"%{value}")
+        elif operator == 'contains':
+            condition = f"{field} LIKE ?"
+            self.params.append(f"%{value}%")
+        elif operator == 'gt':
+            condition = f"{field} > ?"
+            self.params.append(value)
+        elif operator == 'gte':
+            condition = f"{field} >= ?"
+            self.params.append(value)
+        elif operator == 'lt':
+            condition = f"{field} < ?"
+            self.params.append(value)
+        elif operator == 'lte':
+            condition = f"{field} <= ?"
+            self.params.append(value)
+        elif operator == 'exact':
+            condition = f"{field} = ?"
+            self.params.append(value)
+        else:
+            condition = f"{field} = ?"
+            self.params.append(value)
+        return condition
+
     def filter(self, **kwargs):
         split_query = self.query.split('GROUP BY')
         where_clause = ' WHERE ' if 'WHERE' not in split_query[0] else ' AND '
-        for param, value in kwargs.items():
-            split_query[0] += f"{where_clause}{param}=?"
-            self.params.append(value)
-            where_clause = ' AND '
+        conditions = []
+        for key, value in kwargs.items():
+            field_parts = key.split('__')
+            if len(field_parts) > 1:
+                field = field_parts[0]
+                operator = field_parts[1]
+            else:
+                field = key
+                operator = 'exact'
+            condition = self._build_filter_condition(field, operator, value)
+            conditions.append(condition)
+
+        split_query[0] += where_clause + ' AND '.join(conditions)
+        self.query = ' GROUP BY'.join(split_query)
+        return self
+
+    def exclude(self, **kwargs):
+        split_query = self.query.split('GROUP BY')
+        where_clause = ' WHERE ' if 'WHERE' not in split_query[0] else ' AND '
+        conditions = []
+        for key, value in kwargs.items():
+            field_parts = key.split('__')
+            if len(field_parts) > 1:
+                field = field_parts[0]
+                operator = field_parts[1]
+            else:
+                field = key
+                operator = 'exact'
+            condition = self._build_filter_condition(field, operator, value)
+            conditions.append(f"NOT ({condition})")
+
+        split_query[0] += where_clause + ' AND '.join(conditions)
         self.query = ' GROUP BY'.join(split_query)
         return self
 
