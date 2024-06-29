@@ -3,8 +3,8 @@ import settings
 from sergo import utils
 from settings import logger
 
+pyodbc = utils.LazyImport('pyodbc')
 
-pydoc = utils.LazyImport('pyodbc')
 
 class AzureSQLConnection:
     CONNECTION_STRING = ('Driver={{ODBC Driver 18 for SQL Server}};'
@@ -56,8 +56,13 @@ class AzureSQLConnection:
                 for row in self.cursor.fetchall()]
 
     def execute_many_result(self, query, params):
-        # self.cursor.fast_executemany = True
-        self.cursor.executemany(query, params)
+        self.cursor.fast_executemany = True
+        try:
+            self.cursor.executemany(query, params)
+        except pyodbc.Error as e:
+            logger.error(f"Error executing many Error: {e}. Attempting slow insert")
+            self.cursor.fast_executemany = False
+            self.cursor.executemany(query, params)
         return [dict(zip([column[0] for column in self.cursor.description], row))
                 for row in self.cursor.fetchall()]
 

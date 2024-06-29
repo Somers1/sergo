@@ -30,6 +30,13 @@ class ModelBase(type):
         for obj_name, obj in attrs.items():
             if isinstance(obj, fields.Field):
                 new_class._meta.add_field(obj_name, obj)
+
+        # Handle custom managers
+        for attr_name, attr_value in attrs.items():
+            if isinstance(attr_value, Manager):
+                attr_value.model = new_class
+                setattr(new_class, attr_name, attr_value)
+
         if not hasattr(new_class, 'objects'):
             new_class.objects = Manager()
         new_class.objects.model = new_class
@@ -108,8 +115,6 @@ class Manager:
             return self.create(**new_data), True
 
     def bulk_create(self, data, ignore_errors=False):
-        for obj in data:
-            obj.pop('id', None)
         if not data:
             return []
         return connection.insert_many(data, self.table_name)
