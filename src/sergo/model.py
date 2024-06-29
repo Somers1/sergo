@@ -46,6 +46,10 @@ class Options:
         self.fields[name] = field
         field.name = name
 
+    @property
+    def writeable_fields(self):
+        return {field: value for field, value in self.fields.items() if not value.readonly}
+
     def get_field(self, name):
         return self.fields[name]
 
@@ -140,6 +144,13 @@ class Model(metaclass=ModelBase):
                 raise AttributeError(f"{field} is not a valid field for {self.__class__.__name__}")
             setattr(self, field, value)
 
-    @property
-    def serializer(self):
-        return Serializer(self)
+    @classmethod
+    def serializer_class(cls):
+        class _Serializer(Serializer):
+            model_class = cls
+
+        return _Serializer
+
+    @classmethod
+    def serialize(cls, obj):
+        return cls.serializer_class()(obj)

@@ -1,9 +1,11 @@
 from datetime import datetime
 from abc import ABC, abstractmethod
 
+
 class Field(ABC):
-    def __init__(self, optional=True):
+    def __init__(self, optional=True, readonly=False):
         self.optional = optional
+        self.readonly = readonly
 
     def to_internal_value(self, value):
         if self.optional and value is None:
@@ -23,12 +25,14 @@ class Field(ABC):
     def _to_representation(self, value):
         pass
 
+
 class ForeignKey(Field):
     def _to_internal_value(self, value):
         return value
 
     def _to_representation(self, value):
         return value
+
 
 class IntegerField(Field):
     def _to_internal_value(self, value):
@@ -37,12 +41,20 @@ class IntegerField(Field):
     def _to_representation(self, value):
         return int(value)
 
+
+class IDField(IntegerField):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.readonly = True
+
+
 class RelatedField(Field):
     def _to_internal_value(self, value):
         return value
 
     def _to_representation(self, value):
         return value
+
 
 class FloatField(Field):
     def _to_internal_value(self, value):
@@ -51,6 +63,7 @@ class FloatField(Field):
     def _to_representation(self, value):
         return float(value)
 
+
 class TimeField(Field):
     def _to_internal_value(self, value):
         return datetime.fromisoformat(value)
@@ -58,12 +71,14 @@ class TimeField(Field):
     def _to_representation(self, value):
         return value.isoformat()
 
+
 class DecimalField(Field):
     def _to_internal_value(self, value):
         return float(value)
 
     def _to_representation(self, value):
         return float(value)
+
 
 class StringField(Field):
     def _to_internal_value(self, value):
@@ -75,6 +90,7 @@ class StringField(Field):
         if not value:
             return None
         return str(value)
+
 
 class DateField(Field):
     def _to_internal_value(self, value):
@@ -89,6 +105,7 @@ class DateField(Field):
     def _to_representation(self, value):
         return value.isoformat()
 
+
 class BoolField(Field):
     def _to_internal_value(self, value):
         return bool(value)
@@ -96,12 +113,14 @@ class BoolField(Field):
     def _to_representation(self, value):
         return bool(value)
 
+
 class ArrayField(Field):
     def _to_internal_value(self, value):
         return value
 
     def _to_representation(self, value):
         return value
+
 
 class MethodField(Field):
     def to_internal_value(self, value, key):

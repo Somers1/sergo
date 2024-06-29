@@ -14,8 +14,12 @@ class ViewSet:
     def viable_method_handlers(self):
         return {method: getattr(self, f'handle_{method.lower()}') for method in self.viable_methods}
 
+    @property
+    def _serializer_class(self):
+        return getattr(self, 'serializer_class', self.model_class.serializer_class)
+
     def handle_post(self, request):
-        serializer = self.serializer_class(data=request.body)
+        serializer = self._serializer_class(data=request.body)
         serializer.save()
         return serializer.data
 
@@ -23,7 +27,7 @@ class ViewSet:
         if query_param_id := request.query_params.get('id'):
             request.body['id'] = query_param_id
         instance = self.model_class.objects.get(id=request.body['id'])
-        serializer = self.serializer_class(data=request.body, instance=instance)
+        serializer = self._serializer_class(data=request.body, instance=instance)
         serializer.save()
         return serializer.data
 
@@ -59,5 +63,5 @@ class ViewSet:
         if pagination:
             if not ordering:
                 raise ValueError("Pagination requires ordering")
-            return Paginator(query, request, self.serializer_class).get_paginated_response()
-        return self.serializer_class(data=query).data
+            return Paginator(query, request, self._serializer_class).get_paginated_response()
+        return self._serializer_class(data=query).data
