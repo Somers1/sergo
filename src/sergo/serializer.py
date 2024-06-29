@@ -6,7 +6,7 @@ from sergo import fields
 
 class Serializer:
     model_class = None
-    fields = []
+    fields = ['__all__']
 
     @property
     def many(self):

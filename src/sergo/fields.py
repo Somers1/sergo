@@ -23,6 +23,13 @@ class Field(ABC):
     def _to_representation(self, value):
         pass
 
+class ForeignKey(Field):
+    def _to_internal_value(self, value):
+        return value
+
+    def _to_representation(self, value):
+        return value
+
 class IntegerField(Field):
     def _to_internal_value(self, value):
         return int(value)
