@@ -4,6 +4,10 @@ from sergo.query import Query
 from sergo import fields
 
 
+class BaseSerializer:
+    pass
+
+
 class SerializerMetaclass(type):
     def __new__(cls, name, bases, attrs):
         # Move relevant attributes from Meta to the class
@@ -13,10 +17,18 @@ class SerializerMetaclass(type):
                 attrs['model_class'] = meta.model
             if hasattr(meta, 'fields'):
                 attrs['fields'] = meta.fields
-        return super().__new__(cls, name, bases, attrs)
+        new_class = super().__new__(cls, name, bases, attrs)
+        declared_fields = {}
+        for key, value in attrs.items():
+            if isinstance(value, fields.Field):
+                declared_fields[key] = value
+            if isinstance(value, BaseSerializer):
+                declared_fields[key] = value
+        new_class._declared_fields = declared_fields
+        return new_class
 
 
-class Serializer(metaclass=SerializerMetaclass):
+class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     model_class = None
     fields = None
 
@@ -38,25 +50,21 @@ class Serializer(metaclass=SerializerMetaclass):
         self.raw_data = data
         self.instance = instance
         if data is not None:
-            self.data = self.to_representation()
+            self.data = self.to_representation(self.raw_data)
         elif instance is not None:
             self.data = self.represent_obj(instance)
 
     def fields_to_serialize(self, data):
         if self.fields is None:
-            fields = []
+            serialize_fields = []
             for field in self.model_class._meta.writeable_fields.keys():
-                try:
-                    if isinstance(data, dict):
-                        data[field]
-                    else:
-                        getattr(data, field)
-                    fields.append(field)
-                except (AttributeError, KeyError):
-                    continue
-            return fields
+                if isinstance(data, dict) and field in data:
+                    serialize_fields.append(field)
+                if isinstance(data, object) and hasattr(data, field):
+                    serialize_fields.append(field)
+            return serialize_fields
         if '__all__' in self.fields:
-            return list(self.model_class._meta.fields.keys())
+            return list(self.model_class._meta.fields.keys()) + list(self._declared_fields.keys())
         return self.fields
 
     def to_internal_value(self) -> Dict[str, Any] | List[Dict[str, Any]]:
@@ -65,11 +73,9 @@ class Serializer(metaclass=SerializerMetaclass):
         else:
             return self.internal_value_obj(self.data)
 
-    def to_representation(self) -> List[Dict[str, Any]] | Dict[str, Any]:
-        if isinstance(self.raw_data, Query):
-            data = self.raw_data.execute()
-        else:
-            data = self.raw_data
+    def to_representation(self, data) -> List[Dict[str, Any]] | Dict[str, Any]:
+        if isinstance(data, Query):
+            data = data.execute()
         if isinstance(data, list):
             return [self.represent_obj(obj) for obj in data]
         else:
