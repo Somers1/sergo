@@ -1,10 +1,22 @@
 from functools import cached_property
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Type
 from sergo.query import Query
 from sergo import fields
 
 
-class Serializer:
+class SerializerMetaclass(type):
+    def __new__(cls, name, bases, attrs):
+        # Move relevant attributes from Meta to the class
+        if 'Meta' in attrs:
+            meta = attrs['Meta']
+            if hasattr(meta, 'model'):
+                attrs['model_class'] = meta.model
+            if hasattr(meta, 'fields'):
+                attrs['fields'] = meta.fields
+        return super().__new__(cls, name, bases, attrs)
+
+
+class Serializer(metaclass=SerializerMetaclass):
     model_class = None
     fields = None
 
@@ -22,10 +34,13 @@ class Serializer:
             return [self.model_class(**item) for item in self.internal_data]
         return self.model_class(**self.internal_data)
 
-    def __init__(self, data: Dict | Query | List[Dict], instance=None):
+    def __init__(self, data: Dict | Query | List[Dict] = None, instance=None):
         self.raw_data = data
-        self.data = self.to_representation()
         self.instance = instance
+        if data is not None:
+            self.data = self.to_representation()
+        elif instance is not None:
+            self.data = self.represent_obj(instance)
 
     def fields_to_serialize(self, data):
         if self.fields is None:
@@ -40,12 +55,12 @@ class Serializer:
                 except (AttributeError, KeyError):
                     continue
             return fields
-        if self.fields == ['__all__']:
+        if '__all__' in self.fields:
             return list(self.model_class._meta.fields.keys())
         return self.fields
 
     def to_internal_value(self) -> Dict[str, Any] | List[Dict[str, Any]]:
-        if isinstance(self.data, list):
+        if self.many:
             return [self.internal_value_obj(item) for item in self.data]
         else:
             return self.internal_value_obj(self.data)
@@ -68,19 +83,34 @@ class Serializer:
 
     def get_field_value(self, obj: Any, field: str) -> Any:
         value = getattr(obj, field, None) if not isinstance(obj, dict) else obj.get(field)
-        field_instance = self.model_class._meta.get_field(field)
-        if isinstance(field_instance, fields.MethodField):
+        field_instance = self.get_field_instance(field)
+
+        if isinstance(field_instance, Serializer):
+            if isinstance(value, list):
+                return field_instance.to_representation(value)
+            return field_instance.represent_obj(value)
+        elif isinstance(field_instance, fields.MethodField):
             return field_instance.to_representation(value, field)
         else:
             return field_instance.to_representation(value)
 
     def get_internal_value(self, data: Dict[str, Any], field: str) -> Any:
         value = data.get(field)
-        field_instance = self.model_class._meta.get_field(field)
-        if isinstance(field_instance, fields.MethodField):
+        field_instance = self.get_field_instance(field)
+
+        if isinstance(field_instance, Serializer):
+            if isinstance(value, list):
+                return field_instance.to_internal_value(value)
+            return field_instance.internal_value_obj(value)
+        elif isinstance(field_instance, fields.MethodField):
             return field_instance.to_internal_value(value, field)
         else:
             return field_instance.to_internal_value(value)
+
+    def get_field_instance(self, field: str):
+        if hasattr(self, field) and isinstance(getattr(self, field), Serializer):
+            return getattr(self, field)
+        return self.model_class._meta.get_field(field)
 
     def save(self):
         if self.many:

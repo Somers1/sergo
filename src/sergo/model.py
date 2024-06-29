@@ -154,7 +154,8 @@ class Model(metaclass=ModelBase):
     @classmethod
     def get_serializer_class(cls):
         class _Serializer(Serializer):
-            model_class = cls
+            class Meta:
+                model = cls
 
         return _Serializer
 
