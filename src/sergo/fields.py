@@ -60,15 +60,23 @@ class DecimalField(Field):
 
 class StringField(Field):
     def _to_internal_value(self, value):
+        if not value:
+            return None
         return str(value)
 
     def _to_representation(self, value):
+        if not value:
+            return None
         return str(value)
 
 class DateField(Field):
     def _to_internal_value(self, value):
         if isinstance(value, str):
             return datetime.fromisoformat(value)
+        if isinstance(value, int):
+            if value == 0:
+                return None
+            return datetime.utcfromtimestamp(value)
         return value
 
     def _to_representation(self, value):

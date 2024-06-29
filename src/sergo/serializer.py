@@ -12,9 +12,15 @@ class Serializer:
     def many(self):
         return isinstance(self.data, list)
 
-    @cached_property
-    def objects(self):
+    @property
+    def internal_data(self):
         return self.to_internal_value()
+
+    @property
+    def objects(self):
+        if self.many:
+            return [self.model_class(**item) for item in self.internal_data]
+        return self.model_class(**self.internal_data)
 
     def __init__(self, data: Dict | Query | List[Dict], instance=None):
         self.raw_data = data
@@ -48,9 +54,9 @@ class Serializer:
 
     def to_internal_value(self) -> Dict[str, Any] | List[Dict[str, Any]]:
         if isinstance(self.data, list):
-            return [self.model_class(**self.internal_value_obj(item)) for item in self.data]
+            return [self.internal_value_obj(item) for item in self.data]
         else:
-            return self.model_class(**self.internal_value_obj(self.data))
+            return self.internal_value_obj(self.data)
 
     def internal_value_obj(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if not self.model_class:
@@ -69,10 +75,12 @@ class Serializer:
 
     def save(self):
         if self.many:
-            raise NotImplementedError("Bulk create is not implemented")
+            return self.model_class.objects.bulk_create(self.internal_data)
+        internal_data = self.internal_data
+        internal_data.pop('id')
         if self.instance:
-            self.model_class.objects.filter(id=self.instance.id).update(**self.data)
+            self.model_class.objects.filter(id=self.instance.id).update(**internal_data)
             self.instance = self.model_class.objects.get(id=self.instance.id)
         else:
-            self.instance = self.model_class.objects.create(**self.data)
+            self.instance = self.model_class.objects.create(**internal_data)
         return self.instance

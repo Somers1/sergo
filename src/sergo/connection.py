@@ -54,6 +54,12 @@ class AzureSQLConnection:
         return [dict(zip([column[0] for column in self.cursor.description], row))
                 for row in self.cursor.fetchall()]
 
+    def execute_many_result(self, query, params):
+        # self.cursor.fast_executemany = True
+        self.cursor.executemany(query, params)
+        return [dict(zip([column[0] for column in self.cursor.description], row))
+                for row in self.cursor.fetchall()]
+
     def execute(self, query, *params):
         settings.logger.debug(f"Executing query: {query} with params: {params}")
         self.cursor.execute(query, params)
@@ -70,14 +76,21 @@ class AzureSQLConnection:
         self._cursor = None
         self._connection = None
 
-    @ensure_connection
     def insert(self, insert_dict, table):
         columns = ', '.join(insert_dict.keys())
-        values = ', '.join('?' for _ in insert_dict.values())
-        query = f"INSERT INTO {table} ({columns}) OUTPUT INSERTED.id VALUES ({values})"
+        placeholders = ', '.join('?' for _ in insert_dict.values())
+        query = f"INSERT INTO {table} ({columns}) OUTPUT INSERTED.id VALUES ({placeholders})"
         result = self.execute_result(query, *insert_dict.values())
         self.commit()
         return result[0]['id']
+
+    def insert_many(self, insert_list, table, batch_size=10):
+        columns = ', '.join(insert_list[0].keys())
+        placeholders = ', '.join('?' for _ in insert_list[0].values())
+        query = f"INSERT INTO {table} ({columns}) OUTPUT INSERTED.id VALUES ({placeholders})"
+        results = self.execute_many_result(query, [list(row.values()) for row in insert_list])
+        self.commit()
+        return results
 
     @staticmethod
     def default_query(table):

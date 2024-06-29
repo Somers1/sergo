@@ -71,9 +71,9 @@ class Manager:
 
     @property
     def table_name(self):
-        if self.model._meta.db_table:
-            return self.model._meta.db_table
-        return self.model.__name__.lower()
+        schema = getattr(self.model._meta, 'schema', '')
+        table_name = getattr(self.model._meta, 'db_table', self.model_name.lower())
+        return '.'.join([schema, table_name])
 
     @property
     def query(self):
@@ -89,6 +89,15 @@ class Manager:
                 raise AttributeError(f"{field} is not a valid field for {self.model.__name__}")
         inserted_id = connection.insert(kwargs, self.table_name)
         return self.get(id=inserted_id)
+
+    def bulk_create(self, data, ignore_errors=False):
+        for obj in data:
+            obj.pop('id', None)
+        if not data:
+            return []
+        return connection.insert_many(data, self.table_name)
+        # place_holders = ', '.join(['?' for _ in created_id])
+        # return self.from_query(f"SELECT * FROM {self.table_name} WHERE id IN ({place_holders})")
 
     def get(self, **kwargs):
         query = Query(self.query, self.model)
@@ -114,4 +123,3 @@ class Model(metaclass=ModelBase):
             if field not in self._meta.fields:
                 raise AttributeError(f"{field} is not a valid field for {self.__class__.__name__}")
             setattr(self, field, value)
-
