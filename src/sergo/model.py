@@ -60,6 +60,10 @@ class Options:
     def get_field(self, name):
         return self.fields[name]
 
+    @property
+    def primary_key_field(self):
+        return next(field for field, value in self.fields.items() if isinstance(value, fields.IDField))
+
 
 class Manager:
     def __init__(self):
@@ -157,3 +161,16 @@ class Model(metaclass=ModelBase):
     @classmethod
     def serialize(cls, obj):
         return cls.serializer_class()(obj)
+
+    def update(self, **kwargs):
+        id_field = self._meta.primary_key_field
+        return self.objects.filter(**{id_field: getattr(self, id_field)}).update(**kwargs)
+
+    def save(self):
+        update_kwargs = {field: getattr(self, field) for field in self._meta.writeable_fields}
+        if getattr(self, self._meta.primary_key_field, None):
+            return self.update(**update_kwargs)
+        return self.create(**update_kwargs)
+
+    def create(self, **kwargs):
+        return self.objects.create(**kwargs)
