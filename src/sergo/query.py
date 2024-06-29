@@ -141,6 +141,9 @@ class TransactSQLQuery(BaseQuery):
         except IndexError:
             return None
 
+    def exists(self):
+        return bool(self.first())
+
     def search(self, field, value):
         if field and value:
             search_string = f"UPPER({field}) LIKE UPPER(?)"
