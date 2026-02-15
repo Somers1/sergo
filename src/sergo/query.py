@@ -220,4 +220,19 @@ class PostgresSQLQuery(BaseQuery):
         raise NotImplementedError
 
 
-Query = utils.import_string(settings.QUERY_ENGINE)
+class _LazyQuery:
+    """Lazy proxy that resolves the Query class on first access."""
+    _resolved = None
+
+    def __call__(self, *args, **kwargs):
+        if _LazyQuery._resolved is None:
+            _LazyQuery._resolved = utils.import_string(settings.QUERY_ENGINE)
+        return _LazyQuery._resolved(*args, **kwargs)
+
+    def __getattr__(self, name):
+        if _LazyQuery._resolved is None:
+            _LazyQuery._resolved = utils.import_string(settings.QUERY_ENGINE)
+        return getattr(_LazyQuery._resolved, name)
+
+
+Query = _LazyQuery()
