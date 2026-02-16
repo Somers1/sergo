@@ -2,5 +2,7 @@
 .idea
 build
 .venv
-venv__pycache__/
+venv
+__pycache__/
+*.pyc
 uv.lock
