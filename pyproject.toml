@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "A serverless web API framework"
 authors = [{ name = "Jake Somerville", email = "somerville191197@gmail.com" }]
 dependencies = [
-    "toml"
+    "sqlparse>=0.5.5",
+    "toml",
 ]
 readme = "README.md"
 requires-python = ">=3.11"

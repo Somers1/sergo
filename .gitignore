@@ -3,3 +3,4 @@
 build
 .venv
 venv__pycache__/
+uv.lock
