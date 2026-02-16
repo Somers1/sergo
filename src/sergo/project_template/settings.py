@@ -11,8 +11,8 @@ GLOBAL_CONFIG = SYSTEM_CONFIG['global']
 SERGO_CONFIG = SYSTEM_CONFIG['sergo']
 DATABASE_CONFIG = SYSTEM_CONFIG['database']
 
-QUERY_ENGINE = SERGO_CONFIG.get('query_engine', 'sergo.query.TransactSQLQuery')
-DATABASE_ENGINE = SERGO_CONFIG.get('database_engine', 'sergo.connection.AzureSQLConnection')
+QUERY_ENGINE = SERGO_CONFIG.get('query_engine', 'sergo.query.postgres.PostgresQuery')
+DATABASE_ENGINE = SERGO_CONFIG.get('database_engine', 'sergo.connection.postgres.PostgresConnection')
 HANDLER = SERGO_CONFIG.get('handler_engine', 'sergo.handlers.FastAPIHandler')
 
 logger = logging.getLogger(__name__)

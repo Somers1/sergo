@@ -18,8 +18,8 @@ from unittest import TestCase
 # (query.py and connection.py resolve classes at module level)
 settings_module = types.ModuleType('settings')
 settings_module.DATABASE_CONFIG = {'path': ':memory:'}
-settings_module.DATABASE_ENGINE = 'sergo.sqlite_connection.SQLiteConnection'
-settings_module.QUERY_ENGINE = 'sergo.sqlite_query.SQLiteQuery'
+settings_module.DATABASE_ENGINE = 'sergo.connection.sqlite.SQLiteConnection'
+settings_module.QUERY_ENGINE = 'sergo.query.sqlite.SQLiteQuery'
 settings_module.SERGO_CONFIG = {}
 settings_module.GLOBAL_CONFIG = {}
 settings_module.HANDLER = 'sergo.handler.FastAPIHandler'
@@ -27,8 +27,8 @@ settings_module.logger = logging.getLogger('sergo_test')
 sys.modules['settings'] = settings_module
 
 # Now import — connection.py will resolve SQLiteConnection, query.py will resolve SQLiteQuery
-from sergo.sqlite_connection import SQLiteConnection
-from sergo.sqlite_query import SQLiteQuery
+from sergo.connection.sqlite import SQLiteConnection
+from sergo.query.sqlite import SQLiteQuery
 
 
 class TestSQLiteConnection(TestCase):
@@ -439,10 +439,12 @@ class TestSQLiteIntegration(TestCase):
         self.conn.insert({'title': 'Call dentist', 'person': None, 'priority': 'high', 'status': 'open'}, 'tasks')
 
         # Patch connection module to use our connection
-        import sergo.sqlite_query as sq
+        import sergo.query.sqlite as sq
         import sergo.connection as conn_mod
+        import sergo.connection.base as conn_base
         self._orig_connection = conn_mod.connection
         conn_mod.connection = self.conn
+        conn_base.connection = self.conn
         sq.connection = self.conn
 
         # Simple model stand-in
@@ -455,8 +457,10 @@ class TestSQLiteIntegration(TestCase):
     def tearDown(self):
         self.conn.close()
         import sergo.connection as conn_mod
-        import sergo.sqlite_query as sq
+        import sergo.connection.base as conn_base
+        import sergo.query.sqlite as sq
         conn_mod.connection = self._orig_connection
+        conn_base.connection = self._orig_connection
         sq.connection = self._orig_connection
 
     def test_filter_and_execute(self):

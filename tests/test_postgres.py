@@ -22,8 +22,8 @@ settings_module.DATABASE_CONFIG = {
     'user': 'testuser',
     'pass': 'testpass'
 }
-settings_module.DATABASE_ENGINE = 'sergo.postgres_connection.PostgresConnection'
-settings_module.QUERY_ENGINE = 'sergo.postgres_query.PostgresQuery'
+settings_module.DATABASE_ENGINE = 'sergo.connection.postgres.PostgresConnection'
+settings_module.QUERY_ENGINE = 'sergo.query.postgres.PostgresQuery'
 settings_module.SERGO_CONFIG = {}
 settings_module.GLOBAL_CONFIG = {}
 settings_module.HANDLER = 'sergo.handler.FastAPIHandler'
@@ -39,8 +39,8 @@ mock_psycopg.OperationalError = type('OperationalError', (Exception,), {})
 sys.modules['psycopg'] = mock_psycopg
 sys.modules['psycopg.rows'] = mock_psycopg_rows
 
-from sergo.postgres_connection import PostgresConnection
-from sergo.postgres_query import PostgresQuery
+from sergo.connection.postgres import PostgresConnection
+from sergo.query.postgres import PostgresQuery
 
 
 # ─── Query Building Tests ───
