@@ -4,16 +4,16 @@ from functools import wraps
 import settings
 from settings import logger
 
-psycopg2 = None
+psycopg = None
 
 
-def _get_psycopg2():
-    global psycopg2
-    if psycopg2 is None:
+def _get_psycopg():
+    global psycopg
+    if psycopg is None:
         import importlib
-        psycopg2 = importlib.import_module('psycopg2')
-        importlib.import_module('psycopg2.extras')
-    return psycopg2
+        psycopg = importlib.import_module('psycopg')
+        importlib.import_module('psycopg.rows')
+    return psycopg
 
 
 class PostgresConnection:
@@ -52,7 +52,7 @@ class PostgresConnection:
             try:
                 return func(self, *args, **kwargs)
             except Exception as e:
-                pg = _get_psycopg2()
+                pg = _get_psycopg()
                 if isinstance(e, pg.OperationalError):
                     logger.warning(f"Connection lost. Reconnecting... Error: {e}")
                     self.connect()
@@ -65,7 +65,7 @@ class PostgresConnection:
         self._cursor = None
 
     def connect(self):
-        pg = _get_psycopg2()
+        pg = _get_psycopg()
         db_config = settings.DATABASE_CONFIG
         logger.info('Connecting to PostgreSQL database')
         self._connection = pg.connect(
@@ -74,10 +74,11 @@ class PostgresConnection:
             dbname=db_config.get('name', ''),
             user=db_config.get('user', ''),
             password=db_config.get('pass', ''),
+            autocommit=False,
+            row_factory=pg.rows.dict_row,
             **{k: v for k, v in db_config.items() if k not in ('host', 'port', 'name', 'user', 'pass')}
         )
-        self._connection.autocommit = False
-        self._cursor = self._connection.cursor(cursor_factory=pg.extras.RealDictCursor)
+        self._cursor = self._connection.cursor()
 
     @property
     @ensure_connection

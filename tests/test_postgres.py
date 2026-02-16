@@ -30,13 +30,14 @@ settings_module.HANDLER = 'sergo.handler.FastAPIHandler'
 settings_module.logger = logging.getLogger('sergo_test')
 sys.modules['settings'] = settings_module
 
-# Mock psycopg2 before importing connection
-mock_psycopg2 = MagicMock()
-mock_psycopg2.extras = MagicMock()
-mock_psycopg2.extras.RealDictCursor = 'RealDictCursor'
-mock_psycopg2.OperationalError = type('OperationalError', (Exception,), {})
-sys.modules['psycopg2'] = mock_psycopg2
-sys.modules['psycopg2.extras'] = mock_psycopg2.extras
+# Mock psycopg (v3) before importing connection
+mock_psycopg = MagicMock()
+mock_psycopg_rows = MagicMock()
+mock_psycopg_rows.dict_row = 'dict_row'
+mock_psycopg.rows = mock_psycopg_rows
+mock_psycopg.OperationalError = type('OperationalError', (Exception,), {})
+sys.modules['psycopg'] = mock_psycopg
+sys.modules['psycopg.rows'] = mock_psycopg_rows
 
 from sergo.postgres_connection import PostgresConnection
 from sergo.postgres_query import PostgresQuery
@@ -304,9 +305,9 @@ class TestPostgresConnection(TestCase):
 
     def test_connect(self):
         mock_conn = MagicMock()
-        mock_psycopg2.connect.return_value = mock_conn
+        mock_psycopg.connect.return_value = mock_conn
         self.conn.connect()
-        mock_psycopg2.connect.assert_called_once()
+        mock_psycopg.connect.assert_called_once()
         self.assertIsNotNone(self.conn._connection)
 
     def test_insert_validates_identifiers(self):
@@ -315,7 +316,7 @@ class TestPostgresConnection(TestCase):
         mock_cursor.description = [('id',)]
         mock_cursor.fetchall.return_value = [{'id': 1}]
         mock_conn.cursor.return_value = mock_cursor
-        mock_psycopg2.connect.return_value = mock_conn
+        mock_psycopg.connect.return_value = mock_conn
         self.conn.connect()
 
         self.conn.insert({'name': 'test', 'age': 30}, 'users')
