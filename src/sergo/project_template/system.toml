@@ -3,8 +3,8 @@ timezone = "Australia/Sydney"
 
 [sergo]
 handler_engine = "sergo.handler.FastAPIHandler"
-database_engine = "sergo.connection.AzureSQLConnection"
-query_engine = "sergo.query.TransactSQLQuery"
+database_engine = "sergo.connection.postgres.PostgresConnection"
+query_engine = "sergo.query.postgres.PostgresQuery"
 log_level = "INFO"
 
 [database]
