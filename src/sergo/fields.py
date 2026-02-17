@@ -92,7 +92,7 @@ class StringField(Field):
         return str(value)
 
 
-class DateField(Field):
+class DateTimeField(Field):
     def _to_internal_value(self, value):
         if isinstance(value, str):
             return datetime.fromisoformat(value)
