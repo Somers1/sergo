@@ -56,6 +56,26 @@ class BaseQuery(ABC):
     def __len__(self):
         return self.count()
 
+    def __getitem__(self, key):
+        """Support Django-style slicing: queryset[:50], queryset[10:20]."""
+        if isinstance(key, slice):
+            start = key.start or 0
+            if start:
+                self.offset(start)
+            if key.stop is not None:
+                self.limit(key.stop - start)
+            return self.list()
+        if isinstance(key, int):
+            if key < 0:
+                raise ValueError("Negative indexing is not supported")
+            self.offset(key)
+            self.limit(1)
+            results = self.list()
+            if not results:
+                raise IndexError(f"Index {key} out of range")
+            return results[0]
+        raise TypeError(f"Invalid index type: {type(key).__name__}")
+
     def list(self):
         return self.execute()
 
