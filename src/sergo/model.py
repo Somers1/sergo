@@ -89,9 +89,9 @@ class Manager:
 
     @property
     def table_name(self):
-        schema = getattr(self.model._meta, 'schema', '')
+        schema = getattr(self.model._meta, 'schema', None)
         table_name = getattr(self.model._meta, 'db_table', self.model_name.lower())
-        return '.'.join([schema, table_name])
+        return f'{schema}.{table_name}' if schema else table_name
 
     @property
     def query(self):

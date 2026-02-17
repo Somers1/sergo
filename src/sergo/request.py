@@ -28,13 +28,13 @@ class StandardizedRequest:
         )
 
     @classmethod
-    def translate_fastapi(cls, request: Any):
+    def translate_fastapi(cls, request: Any, body=None):
         return cls(
             method=request.method,
             url=str(request.url),
             headers=dict(request.headers),
             query_params=dict(request.query_params),
-            body=request.body
+            body=body
         )
 
 

@@ -93,17 +93,22 @@ class StringField(Field):
 
 
 class DateTimeField(Field):
-    def _to_internal_value(self, value):
+    def _value_to_datetime(self, value):
         if isinstance(value, str):
             return datetime.fromisoformat(value)
         if isinstance(value, int):
             if value == 0:
                 return None
+            if len(str(value)) >= 10:
+                value = value / 1000
             return datetime.utcfromtimestamp(value)
         return value
 
+    def _to_internal_value(self, value):
+        return self._value_to_datetime(value)
+
     def _to_representation(self, value):
-        return value.isoformat()
+        return self._value_to_datetime(value)
 
 
 class BoolField(Field):

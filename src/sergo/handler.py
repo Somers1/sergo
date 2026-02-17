@@ -1,8 +1,21 @@
 import importlib
 import json
 from abc import ABC, abstractmethod
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
+
+
+class SergoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 from sergo import utils
 from sergo.request import Response, StandardizedRequest
@@ -78,7 +91,7 @@ class AzureFunctionHandler(BaseHandler):
         response = self.process_request(standardized_request)
         from azure.functions import HttpResponse
         return HttpResponse(
-            body=json.dumps(response.body),
+            body=json.dumps(response.body, cls=SergoJSONEncoder),
             mimetype="application/json",
             status_code=response.status_code
         )
@@ -88,12 +101,13 @@ class AzureFunctionHandler(BaseHandler):
 
 
 class FastAPIHandler(BaseHandler):
-    def handle(self, request):
-        from fastapi.responses import JSONResponse
-        standardized_request = StandardizedRequest.translate_fastapi(request)
+    def handle(self, request, body=None):
+        from starlette.responses import Response as StarletteResponse
+        standardized_request = StandardizedRequest.translate_fastapi(request, body)
         response = self.process_request(standardized_request)
-        return JSONResponse(
-            content=response.body,
+        return StarletteResponse(
+            content=json.dumps(response.body, cls=SergoJSONEncoder),
+            media_type="application/json",
             status_code=response.status_code
         )
 
@@ -101,9 +115,11 @@ class FastAPIHandler(BaseHandler):
         from fastapi import FastAPI, Request
         app = FastAPI()
 
-        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
         async def fastapi_handler(request: Request):
-            return self.handle(request)
+            raw = await request.body()
+            body = await request.json() if raw else None
+            return self.handle(request, body)
 
         import uvicorn
         uvicorn.run(app, host="0.0.0.0", port=8000)

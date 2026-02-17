@@ -47,7 +47,7 @@ class ViewSet:
     def valid_ordering(self, request):
         if ordering := request.query_params.get('ordering', None):
             return [field for field in ordering.split(',') if field.lstrip('-') in getattr(self, 'order_fields', [])]
-        return getattr(self.model_class._meta, 'ordering')
+        return getattr(self.model_class._meta, 'ordering', None)
 
     def handle_get(self, request: StandardizedRequest):
         query = Query(self.model_class.objects.query, self.model_class)
