@@ -63,21 +63,25 @@ class BaseHandler(ABC):
 
     def process_request(self, request: StandardizedRequest) -> Response:
         response = Response()
+        logger.info(f"{request.method} {request.path} params={request.query_params}")
         try:
             view_set = self.find_urlpatterns()[request.path.rstrip('/')]()
         except KeyError:
             response.body = {"message": f"Path {request.path} not found"}
             response.status_code = 404
+            logger.warning(f"404 {request.path}")
             return self.finalize_and_return(response)
         try:
             handler = view_set.viable_method_handlers[request.method]
         except KeyError:
             response.body = {"message": f"Method {request.method} not allowed"}
             response.status_code = 405
+            logger.warning(f"405 {request.method} {request.path}")
             return self.finalize_and_return(response)
         try:
             response.body = handler(request)
             response.status_code = 200
+            logger.info(f"200 {request.path} response={response.body}")
         except (Exception, KeyboardInterrupt) as e:
             logger.error(e, exc_info=True)
             response.body = {"message": str(e)}

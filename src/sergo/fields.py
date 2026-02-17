@@ -108,7 +108,8 @@ class DateTimeField(Field):
         return self._value_to_datetime(value)
 
     def _to_representation(self, value):
-        return self._value_to_datetime(value)
+        dt = self._value_to_datetime(value)
+        return dt.isoformat() if dt else None
 
 
 class BoolField(Field):

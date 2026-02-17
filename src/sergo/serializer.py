@@ -1,6 +1,7 @@
 from functools import cached_property
 from typing import Dict, List, Any, Type
 from sergo.query import Query
+from sergo.query.base import BaseQuery
 from sergo import fields
 
 
@@ -74,7 +75,7 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
             return self.internal_value_obj(self.data)
 
     def to_representation(self, data) -> List[Dict[str, Any]] | Dict[str, Any]:
-        if isinstance(data, Query):
+        if isinstance(data, BaseQuery):
             data = data.execute()
         if isinstance(data, list):
             return [self.represent_obj(obj) for obj in data]
