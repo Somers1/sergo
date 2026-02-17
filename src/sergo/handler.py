@@ -115,9 +115,19 @@ class FastAPIHandler(BaseHandler):
             status_code=response.status_code
         )
 
-    def configure(self):
+    def configure(self, task_loop=None, host="0.0.0.0", port=8000):
+        from contextlib import asynccontextmanager
         from fastapi import FastAPI, Request
-        app = FastAPI()
+
+        @asynccontextmanager
+        async def lifespan(app):
+            if task_loop:
+                await task_loop.start()
+            yield
+            if task_loop:
+                await task_loop.stop()
+
+        app = FastAPI(lifespan=lifespan)
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
         async def fastapi_handler(request: Request):
@@ -126,7 +136,7 @@ class FastAPIHandler(BaseHandler):
             return self.handle(request, body)
 
         import uvicorn
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        uvicorn.run(app, host=host, port=port)
         return app
 
 
