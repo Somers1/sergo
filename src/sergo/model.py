@@ -44,7 +44,8 @@ class ModelBase(type):
                 attr_value.model = new_class
                 setattr(new_class, attr_name, attr_value)
 
-        if not hasattr(new_class, 'objects'):
+        # Ensure each model gets its own Manager instance (not shared from parent)
+        if 'objects' not in attrs:
             new_class.objects = Manager()
         new_class.objects.model = new_class
         return new_class
