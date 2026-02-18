@@ -66,9 +66,11 @@ class Options:
 
 
 class Manager:
-    def __init__(self):
+    def __init__(self, query_class=None):
         self.model = None
         self._statements = None
+        self._query_mixin = query_class
+        self._merged_query_class = None
 
     @property
     def statements(self):
@@ -134,8 +136,26 @@ class Manager:
         except IndexError:
             raise errors.DoesNotExist("Object not found")
 
+    def _get_query_class(self):
+        """Get the query class, merging custom mixin with configured engine if needed."""
+        if not self._query_mixin:
+            return Query
+        if self._merged_query_class is None:
+            # Resolve the actual query engine class
+            import settings
+            from sergo import utils
+            engine_class = utils.import_string(settings.QUERY_ENGINE)
+            # Dynamically create: class CustomQuery(Mixin, EngineQuery)
+            self._merged_query_class = type(
+                f'{self._query_mixin.__name__}_{engine_class.__name__}',
+                (self._query_mixin, engine_class),
+                {}
+            )
+        return self._merged_query_class
+
     def get_queryset(self):
-        return Query(self.query, self.model)
+        QClass = self._get_query_class()
+        return QClass(self.query, self.model)
 
     def filter(self, **kwargs):
         return self.get_queryset().filter(**kwargs)
