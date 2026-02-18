@@ -27,6 +27,13 @@ class ModelBase(type):
             for key, value in meta.__dict__.items():
                 if not key.startswith('__'):
                     setattr(new_class._meta, key, value)
+        # Inherit fields from parent models
+        for base in bases:
+            if hasattr(base, '_meta') and hasattr(base._meta, 'fields'):
+                for field_name, field in base._meta.fields.items():
+                    if field_name not in attrs:  # child can override
+                        new_class._meta.add_field(field_name, field)
+
         for obj_name, obj in attrs.items():
             if isinstance(obj, fields.Field):
                 new_class._meta.add_field(obj_name, obj)
