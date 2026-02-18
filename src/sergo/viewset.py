@@ -3,6 +3,21 @@ from sergo.query import Query
 from sergo.request import StandardizedRequest
 
 
+class UserScopedMixin:
+    """Mixin that scopes all queries to request.user. Add to any ViewSet to auto-filter
+    by user. Set `scope_field` to customise the FK column (default: 'user_id')."""
+    scope_field = 'user_id'
+
+    def get_queryset(self, request):
+        return self.model_class.objects.filter(**{self.scope_field: request.user.id})
+
+    def scope_body(self, request):
+        """Inject the user scope into request body for creates/updates."""
+        if request.body:
+            request.body[self.scope_field] = request.user.id
+        return request
+
+
 class ViewSet:
     DEFAULT_METHODS = ['GET', 'POST', 'PATCH', 'DELETE']
 
@@ -18,15 +33,25 @@ class ViewSet:
     def _serializer_class(self):
         return getattr(self, 'serializer_class', self.model_class.get_serializer_class())
 
+    def get_queryset(self, request):
+        """Override this to scope queries (e.g. UserScopedMixin)."""
+        return self.model_class.objects
+
+    def scope_body(self, request):
+        """Override this to inject scoping fields into request body."""
+        return request
+
     def handle_post(self, request):
+        request = self.scope_body(request)
         serializer = self._serializer_class(data=request.body)
         serializer.save()
         return serializer.data
 
     def handle_patch(self, request):
+        request = self.scope_body(request)
         if query_param_id := request.query_params.get('id'):
             request.body['id'] = query_param_id
-        instance = self.model_class.objects.get(id=request.body['id'])
+        instance = self.get_queryset(request).get(id=request.body['id'])
         serializer = self._serializer_class(data=request.body, instance=instance)
         serializer.save()
         return serializer.data
@@ -38,7 +63,7 @@ class ViewSet:
                 object_id = request.body['id']
         except KeyError:
             raise ValueError("No id provided")
-        self.model_class.objects.filter(id=object_id).delete()
+        self.get_queryset(request).filter(id=object_id).delete()
         return 'Success'
 
     def query_param_subset(self, query_params, subset_attr):
@@ -50,7 +75,8 @@ class ViewSet:
         return getattr(self.model_class._meta, 'ordering', None)
 
     def handle_get(self, request: StandardizedRequest):
-        query = Query(self.model_class.objects.query, self.model_class)
+        qs = self.get_queryset(request)
+        query = Query(qs.query, self.model_class) if hasattr(qs, 'query') else qs
         query.filter(**self.query_param_subset(request.query_params, 'filter_fields'))
         search_field = request.query_params.get('only')
         if search_field in getattr(self, 'search_fields', []):
