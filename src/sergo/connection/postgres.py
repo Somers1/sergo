@@ -74,7 +74,7 @@ class PostgresConnection:
             dbname=db_config.get('name', ''),
             user=db_config.get('user', ''),
             password=db_config.get('pass', ''),
-            autocommit=False,
+            autocommit=True,
             row_factory=pg.rows.dict_row,
             **{k: v for k, v in db_config.items() if k not in ('host', 'port', 'name', 'user', 'pass')}
         )
