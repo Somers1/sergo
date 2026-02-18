@@ -124,6 +124,16 @@ class SQLiteQuery(BaseQuery):
         self.query = ' GROUP BY'.join(split_query)
         return self
 
+    def get(self, **kwargs):
+        from sergo import errors
+        qs = self.filter(**kwargs) if kwargs else self
+        result = qs.list()
+        if len(result) > 1:
+            raise errors.MultipleObjectsReturned("Multiple objects found")
+        if not result:
+            raise errors.DoesNotExist("Object not found")
+        return result[0]
+
     def first(self):
         self.query += ' LIMIT 1'
         try:

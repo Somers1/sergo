@@ -225,6 +225,16 @@ class PostgresQuery(BaseQuery):
             clone._where_conditions.append(f"NOT ({condition})")
         return clone
 
+    def get(self, **kwargs):
+        from sergo import errors
+        qs = self.filter(**kwargs) if kwargs else self._clone()
+        result = qs.list()
+        if len(result) > 1:
+            raise errors.MultipleObjectsReturned("Multiple objects found")
+        if not result:
+            raise errors.DoesNotExist("Object not found")
+        return result[0]
+
     def first(self):
         clone = self._clone()
         clone._limit_value = 1
