@@ -30,8 +30,10 @@ sergo-admin = "sergo.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-packages = ["sergo", "sergo.connection", "sergo.query"]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 sergo = ["project_template/**/*"]
