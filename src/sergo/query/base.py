@@ -66,7 +66,7 @@ class BaseQuery(ABC):
                 self.offset(start)
             if key.stop is not None:
                 self.limit(key.stop - start)
-            return self.list()
+            return self
         if isinstance(key, int):
             if key < 0:
                 raise ValueError("Negative indexing is not supported")
