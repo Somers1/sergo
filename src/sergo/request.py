@@ -11,9 +11,10 @@ class StandardizedRequest:
     ):
         self.method = method.upper()
         self.url = url
-        self.headers = headers
+        self.headers = headers or {}
         self.query_params = query_params or {}
         self.body = body
+        self.user = None  # Set by auth backend if configured
         parsed_url = urlparse(url)
         self.path = parsed_url.path
 

@@ -61,9 +61,22 @@ class BaseHandler(ABC):
                 print(f"Error importing {module_path}: {e}")
         return urlpatterns
 
+    def authenticate(self, request: StandardizedRequest) -> StandardizedRequest:
+        """Run the auth backend if configured. Sets request.user."""
+        if hasattr(self, '_auth_backend') and self._auth_backend:
+            request.user = self._auth_backend(request)
+        return request
+
     def process_request(self, request: StandardizedRequest) -> Response:
         response = Response()
         logger.info(f"{request.method} {request.path} params={request.query_params}")
+        try:
+            request = self.authenticate(request)
+        except Exception as e:
+            logger.warning(f"401 {request.path}: {e}")
+            response.body = {"message": str(e)}
+            response.status_code = 401
+            return self.finalize_and_return(response)
         try:
             view_set = self.find_urlpatterns()[request.path.rstrip('/')]()
         except KeyError:
@@ -115,7 +128,8 @@ class FastAPIHandler(BaseHandler):
             status_code=response.status_code
         )
 
-    def configure(self, task_loop=None, host="0.0.0.0", port=8000):
+    def configure(self, task_loop=None, auth_backend=None, host="0.0.0.0", port=8000):
+        self._auth_backend = auth_backend
         from contextlib import asynccontextmanager
         from fastapi import FastAPI, Request
 
