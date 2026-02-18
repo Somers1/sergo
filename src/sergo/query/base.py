@@ -1,4 +1,6 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 import settings
 from sergo import utils
 from sergo.connection import connection
