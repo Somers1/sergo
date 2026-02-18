@@ -1,3 +1,4 @@
+import copy
 from sergo.query import BaseQuery
 from sergo.connection import connection
 
@@ -27,6 +28,19 @@ class PostgresQuery(BaseQuery):
 
         # Extract existing WHERE/GROUP BY from base query if present
         self._parse_base_query()
+
+    def _clone(self):
+        """Return a deep copy so mutations don't affect the original."""
+        clone = self.__class__.__new__(self.__class__)
+        clone.model = self.model
+        clone._base_query = self._base_query
+        clone._where_conditions = list(self._where_conditions)
+        clone._where_params = list(self._where_params)
+        clone._group_by = self._group_by
+        clone._order_clauses = list(self._order_clauses)
+        clone._limit_value = self._limit_value
+        clone._offset_value = self._offset_value
+        return clone
 
     @property
     def query(self):
@@ -184,6 +198,7 @@ class PostgresQuery(BaseQuery):
         return str(value).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
     def filter(self, **kwargs):
+        clone = self._clone()
         for key, value in kwargs.items():
             field_parts = key.split('__')
             if len(field_parts) > 1:
@@ -192,11 +207,12 @@ class PostgresQuery(BaseQuery):
             else:
                 field = key
                 operator = 'exact'
-            condition = self._build_filter_condition(field, operator, value)
-            self._where_conditions.append(condition)
-        return self
+            condition = clone._build_filter_condition(field, operator, value)
+            clone._where_conditions.append(condition)
+        return clone
 
     def exclude(self, **kwargs):
+        clone = self._clone()
         for key, value in kwargs.items():
             field_parts = key.split('__')
             if len(field_parts) > 1:
@@ -205,14 +221,15 @@ class PostgresQuery(BaseQuery):
             else:
                 field = key
                 operator = 'exact'
-            condition = self._build_filter_condition(field, operator, value)
-            self._where_conditions.append(f"NOT ({condition})")
-        return self
+            condition = clone._build_filter_condition(field, operator, value)
+            clone._where_conditions.append(f"NOT ({condition})")
+        return clone
 
     def first(self):
-        self._limit_value = 1
+        clone = self._clone()
+        clone._limit_value = 1
         try:
-            return self.list()[0]
+            return clone.list()[0]
         except IndexError:
             return None
 
@@ -220,16 +237,18 @@ class PostgresQuery(BaseQuery):
         return bool(self.first())
 
     def search(self, field, value):
+        clone = self._clone()
         if field and value:
             safe_field = self._validate_field_name(field)
             condition = f"{safe_field} ILIKE %s"
-            self._where_params.append(f"%{self._escape_like(value)}%")
-            self._where_conditions.append(condition)
-        return self
+            clone._where_params.append(f"%{self._escape_like(value)}%")
+            clone._where_conditions.append(condition)
+        return clone
 
     def order(self, ordering):
         if not ordering:
             return self
+        clone = self._clone()
         if isinstance(ordering, str):
             ordering = [ordering]
         for order_param in ordering:
@@ -240,22 +259,22 @@ class PostgresQuery(BaseQuery):
                 column = order_param
                 direction = 'ASC'
             safe_col = self._validate_field_name(column)
-            self._order_clauses.append(f"{safe_col} {direction}")
-        return self
+            clone._order_clauses.append(f"{safe_col} {direction}")
+        return clone
 
     def limit(self, limit):
-        self._limit_value = int(limit)
-        return self
+        clone = self._clone()
+        clone._limit_value = int(limit)
+        return clone
 
     def offset(self, offset):
-        self._offset_value = int(offset)
-        return self
+        clone = self._clone()
+        clone._offset_value = int(offset)
+        return clone
 
     def paginate(self, page, page_size):
         """Postgres: LIMIT then OFFSET."""
-        self.limit(page_size)
-        self.offset(page_size * (page - 1))
-        return self
+        return self.limit(page_size).offset(page_size * (page - 1))
 
     def count(self):
         # Build query without ORDER BY, LIMIT, OFFSET for count
