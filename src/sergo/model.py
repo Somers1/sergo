@@ -171,6 +171,21 @@ class Manager:
     def all(self):
         return self.get_queryset()
 
+    def first(self):
+        return self.get_queryset().first()
+
+    def exclude(self, **kwargs):
+        return self.get_queryset().exclude(**kwargs)
+
+    def order(self, ordering):
+        return self.get_queryset().order(ordering)
+
+    def count(self):
+        return self.get_queryset().count()
+
+    def exists(self):
+        return self.get_queryset().exists()
+
 
 class Model(metaclass=ModelBase):
     def __init__(self, **kwargs):
