@@ -203,3 +203,8 @@ class Model(metaclass=ModelBase):
 
     def create(self, **kwargs):
         return self.objects.create(**kwargs)
+
+    def delete(self, **kwargs):
+        id_field = self._meta.primary_key_field
+        return self.objects.filter(**{id_field: getattr(self, id_field)}).delete()
+
