@@ -105,7 +105,7 @@ class PostgresConnection:
 
     def execute(self, query, *params):
         """Execute a query with parameterized values."""
-        logger.warning(f"Executing query: {query} with params: {params}")
+        logger.debug(f"Executing query: {query} with params: {params}")
         self.cursor.execute(query, params)
 
     def commit(self):
