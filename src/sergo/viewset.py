@@ -3,19 +3,6 @@ from sergo.query import Query
 from sergo.request import StandardizedRequest
 
 
-class UserScopedMixin:
-    """Mixin that scopes all queries to request.user. Add to any ViewSet to auto-filter
-    by user. Set `scope_field` to customise the FK column (default: 'user_id')."""
-    scope_field = 'user_id'
-
-    def get_queryset(self, request):
-        return self.model_class.objects.filter(**{self.scope_field: request.user.id})
-
-    def scope_body(self, request):
-        """Inject the user scope into request body for creates/updates."""
-        if request.body:
-            request.body[self.scope_field] = request.user.id
-        return request
 
 
 class ViewSet:
@@ -92,3 +79,17 @@ class ViewSet:
                 raise ValueError("Pagination requires ordering")
             return Paginator(query, request, self._serializer_class).get_paginated_response()
         return self._serializer_class(data=query).data
+
+class UserScopedViewSet(ViewSet):
+    """Mixin that scopes all queries to request.user. Add to any ViewSet to auto-filter
+    by user. Set `scope_field` to customise the FK column (default: 'user_id')."""
+    scope_field = 'user_id'
+
+    def get_queryset(self, request):
+        return self.model_class.objects.filter(**{self.scope_field: request.user.id})
+
+    def scope_body(self, request):
+        """Inject the user scope into request body for creates/updates."""
+        if request.body:
+            request.body[self.scope_field] = request.user.id
+        return request
