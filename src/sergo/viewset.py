@@ -71,7 +71,7 @@ class ViewSet:
         if ordering := self.valid_ordering(request):
             query.order(ordering)
         try:
-            pagination = eval(request.query_params['pagination'])
+            pagination = request.query_params['pagination'].lower() == 'true'
         except KeyError:
             pagination = getattr(self, 'pagination', False)
         if pagination:
