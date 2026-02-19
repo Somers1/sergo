@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 
 
@@ -101,7 +101,7 @@ class DateTimeField(Field):
                 return None
             if len(str(value)) >= 10:
                 value = value / 1000
-            return datetime.utcfromtimestamp(value)
+            return datetime.fromtimestamp(value, tz=timezone.utc)
         return value
 
     def _to_internal_value(self, value):
