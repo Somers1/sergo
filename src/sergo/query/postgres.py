@@ -324,12 +324,13 @@ class PostgresQuery(BaseQuery):
             raise ValueError("Invalid update query")
         table = parts[1].strip()
 
+        import json as _json
         set_parts = []
         set_values = []
         for key, value in kwargs.items():
             safe_key = self._validate_field_name(key)
             set_parts.append(f"{safe_key} = %s")
-            set_values.append(value)
+            set_values.append(_json.dumps(value) if isinstance(value, (list, dict)) else value)
 
         set_clause = ', '.join(set_parts)
         query = f"UPDATE {table} SET {set_clause}"
