@@ -69,7 +69,8 @@ class BaseHandler(ABC):
 
     def process_request(self, request: StandardizedRequest) -> Response:
         response = Response()
-        logger.info(f"{request.method} {request.path} params={request.query_params}")
+        logger.info(f"{request.method} {request.path}")
+        logger.debug(f"params={request.query_params}")
         try:
             request = self.authenticate(request)
         except Exception as e:
@@ -94,7 +95,8 @@ class BaseHandler(ABC):
         try:
             response.body = handler(request)
             response.status_code = 200
-            logger.info(f"200 {request.path} response={response.body}")
+            logger.info(f"200 {request.method} {request.path}")
+            logger.debug(f"Response body: {response.body}")
         except (Exception, KeyboardInterrupt) as e:
             logger.error(e, exc_info=True)
             response.body = {"message": str(e)}
