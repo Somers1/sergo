@@ -130,7 +130,7 @@ class FastAPIHandler(BaseHandler):
             status_code=response.status_code
         )
 
-    def configure(self, task_loop=None, auth_backend=None, host="0.0.0.0", port=8000):
+    def configure(self, task_loop=None, auth_backend=None, host="0.0.0.0", port=8000, on_setup=None):
         self._auth_backend = auth_backend
         from contextlib import asynccontextmanager
         from fastapi import FastAPI, Request
@@ -144,6 +144,9 @@ class FastAPIHandler(BaseHandler):
                 await task_loop.stop()
 
         app = FastAPI(lifespan=lifespan)
+
+        if on_setup:
+            on_setup(app)
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
         async def fastapi_handler(request: Request):
