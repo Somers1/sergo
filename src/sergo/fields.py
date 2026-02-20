@@ -128,6 +128,23 @@ class ArrayField(Field):
         return value
 
 
+class VectorField(Field):
+    """pgvector field — stores embeddings as float arrays, serializes to/from pgvector format."""
+    def _to_internal_value(self, value):
+        if isinstance(value, list): return value
+        if isinstance(value, str): return [float(x) for x in value.strip('[]').split(',')]
+        return value
+
+    def _to_representation(self, value):
+        if isinstance(value, list): return value
+        if isinstance(value, str): return [float(x) for x in value.strip('[]').split(',')]
+        return value
+
+    def to_db(self, value):
+        if value is None: return None
+        return f'[{",".join(str(v) for v in value)}]'
+
+
 class MethodField(Field):
     def to_internal_value(self, value, key):
         if self.optional and value is None:

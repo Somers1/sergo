@@ -118,11 +118,23 @@ class Manager:
         except KeyError:
             return connection.DEFAULT_QUERY.format(table_name=self.table_name)
 
+    def _prepare_values(self, kwargs):
+        """Convert field values using to_db() if the field defines it (e.g. VectorField)."""
+        prepared = {}
+        for key, value in kwargs.items():
+            field = self.model._meta.fields.get(key)
+            if field and hasattr(field, 'to_db'):
+                prepared[key] = field.to_db(value)
+            else:
+                prepared[key] = value
+        return prepared
+
     def create(self, **kwargs):
         for field in kwargs.keys():
             if field not in self.model._meta.fields:
                 # Prevents SQL injection
                 raise AttributeError(f"{field} is not a valid field for {self.model.__name__}")
+        kwargs = self._prepare_values(kwargs)
         inserted_id = connection.insert(kwargs, self.table_name)
         return self.get(id=inserted_id)
 
@@ -216,6 +228,7 @@ class Model(metaclass=ModelBase):
 
     def update(self, **kwargs):
         id_field = self._meta.primary_key_field
+        kwargs = self.objects._prepare_values(kwargs)
         return self.objects.filter(**{id_field: getattr(self, id_field)}).update(**kwargs)
 
     def save(self):

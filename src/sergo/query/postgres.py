@@ -282,6 +282,17 @@ class PostgresQuery(BaseQuery):
         clone._offset_value = int(offset)
         return clone
 
+    def similar_to(self, field, vector, limit=5):
+        """Find rows with most similar vectors using pgvector cosine distance (<=>).
+        Returns results ordered by similarity (closest first).
+        Usage: Model.objects.filter(user_id=1).similar_to('embedding', query_vector, limit=5)"""
+        clone = self._clone()
+        safe_field = self._validate_field_name(field)
+        clone._order_clauses = [f"{safe_field} <=> %s"]
+        clone._where_params.append(f'[{",".join(str(v) for v in vector)}]')
+        clone._limit_value = limit
+        return clone
+
     def paginate(self, page, page_size):
         """Postgres: LIMIT then OFFSET."""
         return self.limit(page_size).offset(page_size * (page - 1))
