@@ -44,9 +44,17 @@ class ModelBase(type):
                 attr_value.model = new_class
                 setattr(new_class, attr_name, attr_value)
 
-        # Ensure each model gets its own Manager instance (not shared from parent)
+        # Ensure each model gets its own Manager instance — inherit parent's manager class/config if not overridden
         if 'objects' not in attrs:
-            new_class.objects = Manager()
+            parent_manager = None
+            for base in bases:
+                if hasattr(base, 'objects') and isinstance(base.objects, Manager):
+                    parent_manager = base.objects
+                    break
+            if parent_manager and parent_manager._query_mixin is not None:
+                new_class.objects = Manager(query_class=parent_manager._query_mixin)
+            else:
+                new_class.objects = Manager()
         new_class.objects.model = new_class
         return new_class
 
