@@ -67,7 +67,8 @@ class BaseHandler(ABC):
             request.user = self._auth_backend(request)
         return request
 
-    def process_request(self, request: StandardizedRequest) -> Response:
+    def _resolve_handler(self, request: StandardizedRequest):
+        """Authenticate, route, and return (handler, response) or (None, error_response)."""
         response = Response()
         logger.info(f"{request.method} {request.path}")
         logger.debug(f"params={request.query_params}")
@@ -75,22 +76,25 @@ class BaseHandler(ABC):
             request = self.authenticate(request)
         except Exception as e:
             logger.warning(f"401 {request.path}: {e}")
-            response.body = {"message": str(e)}
-            response.status_code = 401
-            return self.finalize_and_return(response)
+            response.body, response.status_code = {"message": str(e)}, 401
+            return None, request, response
         try:
             view_set = self.find_urlpatterns()[request.path.rstrip('/')]()
         except KeyError:
-            response.body = {"message": f"Path {request.path} not found"}
-            response.status_code = 404
             logger.warning(f"404 {request.path}")
-            return self.finalize_and_return(response)
+            response.body, response.status_code = {"message": f"Path {request.path} not found"}, 404
+            return None, request, response
         try:
             handler = view_set.viable_method_handlers[request.method]
         except KeyError:
-            response.body = {"message": f"Method {request.method} not allowed"}
-            response.status_code = 405
             logger.warning(f"405 {request.method} {request.path}")
+            response.body, response.status_code = {"message": f"Method {request.method} not allowed"}, 405
+            return None, request, response
+        return handler, request, response
+
+    def process_request(self, request: StandardizedRequest) -> Response:
+        handler, request, response = self._resolve_handler(request)
+        if not handler:
             return self.finalize_and_return(response)
         try:
             response.body = handler(request)
@@ -99,8 +103,25 @@ class BaseHandler(ABC):
             logger.debug(f"Response body: {response.body}")
         except (Exception, KeyboardInterrupt) as e:
             logger.error(e, exc_info=True)
-            response.body = {"message": str(e)}
-            response.status_code = 400
+            response.body, response.status_code = {"message": str(e)}, 400
+        return self.finalize_and_return(response)
+
+    async def async_process_request(self, request: StandardizedRequest) -> Response:
+        import inspect
+        handler, request, response = self._resolve_handler(request)
+        if not handler:
+            return self.finalize_and_return(response)
+        try:
+            result = handler(request)
+            if inspect.isawaitable(result):
+                result = await result
+            response.body = result
+            response.status_code = 200
+            logger.info(f"200 {request.method} {request.path}")
+            logger.debug(f"Response body: {response.body}")
+        except (Exception, KeyboardInterrupt) as e:
+            logger.error(e, exc_info=True)
+            response.body, response.status_code = {"message": str(e)}, 400
         return self.finalize_and_return(response)
 
 
@@ -120,10 +141,10 @@ class AzureFunctionHandler(BaseHandler):
 
 
 class FastAPIHandler(BaseHandler):
-    def handle(self, request, body=None):
+    async def handle(self, request, body=None, files=None):
         from starlette.responses import Response as StarletteResponse
-        standardized_request = StandardizedRequest.translate_fastapi(request, body)
-        response = self.process_request(standardized_request)
+        standardized_request = StandardizedRequest.translate_fastapi(request, body, files=files)
+        response = await self.async_process_request(standardized_request)
         return StarletteResponse(
             content=json.dumps(response.body, cls=SergoJSONEncoder),
             media_type="application/json",
@@ -150,6 +171,18 @@ class FastAPIHandler(BaseHandler):
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
         async def fastapi_handler(request: Request):
+            content_type = request.headers.get('content-type', '')
+            if 'multipart/form-data' in content_type:
+                from sergo.request import UploadedFile
+                form = await request.form()
+                body, files = {}, {}
+                for key, value in form.multi_items():
+                    if hasattr(value, 'read'):
+                        content = await value.read()
+                        files[key] = UploadedFile(filename=value.filename, content=content, content_type=value.content_type)
+                    else:
+                        body[key] = value
+                return self.handle(request, body, files)
             raw = await request.body()
             body = await request.json() if raw else None
             return self.handle(request, body)

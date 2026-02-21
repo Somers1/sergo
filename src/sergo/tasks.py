@@ -40,11 +40,21 @@ class TaskLoop:
     Started automatically when passed to handler.configure().
     """
 
+    _instance = None
+
     def __init__(self):
         self._recurring: list[tuple[float, Callable, str]] = []
         self._queue: asyncio.Queue | None = None
         self._tasks: list[asyncio.Task] = []
         self._running = False
+        TaskLoop._instance = self
+
+    @classmethod
+    def get_instance(cls) -> 'TaskLoop':
+        """Get the most recently created TaskLoop instance."""
+        if cls._instance is None:
+            raise RuntimeError("No TaskLoop instance created yet")
+        return cls._instance
 
     def recurring(self, interval: int, name: str | None = None):
         """Decorator to register a recurring background function.
