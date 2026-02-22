@@ -182,10 +182,10 @@ class FastAPIHandler(BaseHandler):
                         files[key] = UploadedFile(filename=value.filename, content=content, content_type=value.content_type)
                     else:
                         body[key] = value
-                return self.handle(request, body, files)
+                return await self.handle(request, body, files)
             raw = await request.body()
             body = await request.json() if raw else None
-            return self.handle(request, body)
+            return await self.handle(request, body)
 
         import uvicorn
         uvicorn.run(app, host=host, port=port)
