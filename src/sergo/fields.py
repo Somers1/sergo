@@ -3,9 +3,10 @@ from abc import ABC, abstractmethod
 
 
 class Field(ABC):
-    def __init__(self, optional=True, readonly=False):
+    def __init__(self, optional=True, readonly=False, db_column=None):
         self.optional = optional
         self.readonly = readonly
+        self.db_column = db_column
 
     def to_internal_value(self, value):
         if self.optional and value is None:
@@ -118,6 +119,18 @@ class BoolField(Field):
 
     def _to_representation(self, value):
         return bool(value)
+
+
+class JSONField(Field):
+    """Stores dicts/lists as JSON. Auto-serializes on write, auto-deserializes on read."""
+    def _to_internal_value(self, value):
+        if isinstance(value, str):
+            import json
+            return json.loads(value)
+        return value
+
+    def _to_representation(self, value):
+        return value
 
 
 class ArrayField(Field):
