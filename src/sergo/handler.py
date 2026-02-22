@@ -152,6 +152,13 @@ class FastAPIHandler(BaseHandler):
         )
 
     def configure(self, task_loop=None, auth_backend=None, host="0.0.0.0", port=8000, on_setup=None):
+        self.build_app(task_loop=task_loop, auth_backend=auth_backend, on_setup=on_setup)
+        import uvicorn
+        uvicorn.run(self.app, host=host, port=port)
+        return self.app
+
+    def build_app(self, task_loop=None, auth_backend=None, on_setup=None):
+        """Build the FastAPI app without starting the server. Use with external uvicorn."""
         self._auth_backend = auth_backend
         from contextlib import asynccontextmanager
         from fastapi import FastAPI, Request
@@ -164,12 +171,12 @@ class FastAPIHandler(BaseHandler):
             if task_loop:
                 await task_loop.stop()
 
-        app = FastAPI(lifespan=lifespan)
+        self.app = FastAPI(lifespan=lifespan)
 
         if on_setup:
-            on_setup(app)
+            on_setup(self.app)
 
-        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+        @self.app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
         async def fastapi_handler(request: Request):
             content_type = request.headers.get('content-type', '')
             if 'multipart/form-data' in content_type:
@@ -187,9 +194,7 @@ class FastAPIHandler(BaseHandler):
             body = await request.json() if raw else None
             return await self.handle(request, body)
 
-        import uvicorn
-        uvicorn.run(app, host=host, port=port)
-        return app
+        return self.app
 
 
 def get_handler(handler=None):
