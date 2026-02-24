@@ -68,22 +68,23 @@ class BaseHandler(ABC):
         return request
 
     def _resolve_handler(self, request: StandardizedRequest):
-        """Authenticate, route, and return (handler, response) or (None, error_response)."""
+        """Route, authenticate (if required), and return (handler, response) or (None, error_response)."""
         response = Response()
         logger.info(f"{request.method} {request.path}")
         logger.debug(f"params={request.query_params}")
-        try:
-            request = self.authenticate(request)
-        except Exception as e:
-            logger.warning(f"401 {request.path}: {e}")
-            response.body, response.status_code = {"message": str(e)}, 401
-            return None, request, response
         try:
             view_set = self.find_urlpatterns()[request.path.rstrip('/')]()
         except KeyError:
             logger.warning(f"404 {request.path}")
             response.body, response.status_code = {"message": f"Path {request.path} not found"}, 404
             return None, request, response
+        if getattr(view_set, 'auth_required', True):
+            try:
+                request = self.authenticate(request)
+            except Exception as e:
+                logger.warning(f"401 {request.path}: {e}")
+                response.body, response.status_code = {"message": str(e)}, 401
+                return None, request, response
         try:
             handler = view_set.viable_method_handlers[request.method]
         except KeyError:
