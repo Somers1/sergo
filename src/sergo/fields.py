@@ -1,12 +1,23 @@
+from __future__ import annotations
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
+from typing import Generic, TypeVar, overload, Optional, Any, TYPE_CHECKING
+
+T = TypeVar('T')
 
 
-class Field(ABC):
+class Field(ABC, Generic[T]):
     def __init__(self, optional=True, readonly=False, db_column=None):
         self.optional = optional
         self.readonly = readonly
         self.db_column = db_column
+
+    if TYPE_CHECKING:
+        @overload
+        def __get__(self, obj: None, objtype: Any) -> Field[T]: ...
+        @overload
+        def __get__(self, obj: Any, objtype: Any) -> Optional[T]: ...
+        def __get__(self, obj: Any, objtype: Any = None) -> Any: ...
 
     def to_internal_value(self, value):
         if self.optional and value is None:
@@ -27,7 +38,7 @@ class Field(ABC):
         pass
 
 
-class ForeignKey(Field):
+class ForeignKey(Field[int]):
     def _to_internal_value(self, value):
         return value
 
@@ -35,7 +46,7 @@ class ForeignKey(Field):
         return value
 
 
-class IntegerField(Field):
+class IntegerField(Field[int]):
     def _to_internal_value(self, value):
         return int(value)
 
@@ -49,7 +60,7 @@ class IDField(IntegerField):
         self.readonly = True
 
 
-class RelatedField(Field):
+class RelatedField(Field[int]):
     def _to_internal_value(self, value):
         return value
 
@@ -57,7 +68,7 @@ class RelatedField(Field):
         return value
 
 
-class FloatField(Field):
+class FloatField(Field[float]):
     def _to_internal_value(self, value):
         return float(value)
 
@@ -65,7 +76,7 @@ class FloatField(Field):
         return float(value)
 
 
-class TimeField(Field):
+class TimeField(Field[datetime]):
     def _to_internal_value(self, value):
         return datetime.fromisoformat(value)
 
@@ -73,7 +84,7 @@ class TimeField(Field):
         return value.isoformat()
 
 
-class DecimalField(Field):
+class DecimalField(Field[float]):
     def _to_internal_value(self, value):
         return float(value)
 
@@ -81,7 +92,7 @@ class DecimalField(Field):
         return float(value)
 
 
-class StringField(Field):
+class StringField(Field[str]):
     def _to_internal_value(self, value):
         if not value:
             return None
@@ -93,7 +104,7 @@ class StringField(Field):
         return str(value)
 
 
-class DateTimeField(Field):
+class DateTimeField(Field[datetime]):
     def _value_to_datetime(self, value):
         if isinstance(value, str):
             return datetime.fromisoformat(value)
@@ -113,7 +124,7 @@ class DateTimeField(Field):
         return dt.isoformat() if dt else None
 
 
-class BoolField(Field):
+class BoolField(Field[bool]):
     def _to_internal_value(self, value):
         return bool(value)
 
@@ -121,7 +132,7 @@ class BoolField(Field):
         return bool(value)
 
 
-class JSONField(Field):
+class JSONField(Field[dict | list]):
     """Stores dicts/lists as JSON. Auto-serializes on write, auto-deserializes on read."""
     def _to_internal_value(self, value):
         if isinstance(value, str):
@@ -133,7 +144,7 @@ class JSONField(Field):
         return value
 
 
-class ArrayField(Field):
+class ArrayField(Field[list]):
     def _to_internal_value(self, value):
         return value
 
@@ -141,7 +152,7 @@ class ArrayField(Field):
         return value
 
 
-class VectorField(Field):
+class VectorField(Field[list[float]]):
     """pgvector field — stores embeddings as float arrays, serializes to/from pgvector format."""
     def _to_internal_value(self, value):
         if isinstance(value, list): return value
@@ -158,7 +169,7 @@ class VectorField(Field):
         return f'[{",".join(str(v) for v in value)}]'
 
 
-class MethodField(Field):
+class MethodField(Field[Any]):
     def to_internal_value(self, value, key):
         if self.optional and value is None:
             return None
