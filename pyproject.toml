@@ -10,10 +10,8 @@ authors = [{ name = "Jake Somerville", email = "somerville191197@gmail.com" }]
 dependencies = [
     "sqlparse>=0.5.5",
     "toml",
+    "croniter>=1.0",
 ]
-
-[project.optional-dependencies]
-cron = ["croniter>=1.0"]
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
