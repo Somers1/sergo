@@ -28,7 +28,13 @@ Usage:
 """
 
 import asyncio
+from datetime import datetime, timezone
 from typing import Callable, Coroutine, Any
+
+try:
+    from croniter import croniter
+except ImportError:
+    croniter = None
 
 from settings import logger
 
@@ -44,6 +50,7 @@ class TaskLoop:
 
     def __init__(self):
         self._recurring: list[tuple[float, Callable, str]] = []
+        self._cron: list[tuple[str, Callable, str, str | None]] = []
         self._queue: asyncio.Queue | None = None
         self._tasks: list[asyncio.Task] = []
         self._running = False
@@ -66,6 +73,22 @@ class TaskLoop:
         def wrapper(fn):
             label = name or fn.__name__
             self._recurring.append((interval, fn, label))
+            return fn
+        return wrapper
+
+    def cron(self, expr: str, name: str | None = None, tz: str | None = None):
+        """Decorator to register a cron-scheduled background function.
+
+        Args:
+            expr: Cron expression (e.g. '0 2 * * *' for daily at 2am).
+            name: Optional name for logging. Defaults to function name.
+            tz: Optional timezone name (e.g. 'Australia/Sydney'). Defaults to UTC.
+        """
+        if croniter is None:
+            raise ImportError("croniter is required for cron scheduling: pip install croniter")
+        def wrapper(fn):
+            label = name or fn.__name__
+            self._cron.append((expr, fn, label, tz))
             return fn
         return wrapper
 
@@ -92,9 +115,17 @@ class TaskLoop:
             ))
             logger.info(f"TaskLoop: started recurring '{label}' (every {interval}s)")
 
+        # Start cron-scheduled tasks
+        for expr, fn, label, tz in self._cron:
+            self._tasks.append(asyncio.create_task(
+                self._run_cron(expr, fn, label, tz)
+            ))
+            logger.info(f"TaskLoop: started cron '{label}' ({expr})")
+
         # Start task consumer
         self._tasks.append(asyncio.create_task(self._consume()))
-        logger.info(f"TaskLoop: started with {len(self._recurring)} recurring tasks")
+        total = len(self._recurring) + len(self._cron)
+        logger.info(f"TaskLoop: started with {total} scheduled tasks")
 
     async def stop(self) -> None:
         """Stop all background tasks."""
@@ -116,6 +147,26 @@ class TaskLoop:
                 break
             except Exception as e:
                 logger.error(f"TaskLoop recurring '{label}' error: {e}", exc_info=True)
+
+    async def _run_cron(self, expr: str, fn: Callable, label: str, tz: str | None) -> None:
+        """Run a function on a cron schedule."""
+        from zoneinfo import ZoneInfo
+        zone = ZoneInfo(tz) if tz else timezone.utc
+        while self._running:
+            try:
+                now = datetime.now(zone)
+                cron = croniter(expr, now)
+                next_run = cron.get_next(datetime)
+                delay = (next_run - now).total_seconds()
+                logger.info(f"TaskLoop cron '{label}': next run in {delay:.0f}s at {next_run}")
+                await asyncio.sleep(delay)
+                if self._running:
+                    await fn()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"TaskLoop cron '{label}' error: {e}", exc_info=True)
+                await asyncio.sleep(60)
 
     async def _consume(self) -> None:
         """Process fire-and-forget tasks from the queue."""

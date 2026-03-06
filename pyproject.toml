@@ -11,6 +11,9 @@ dependencies = [
     "sqlparse>=0.5.5",
     "toml",
 ]
+
+[project.optional-dependencies]
+cron = ["croniter>=1.0"]
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
