@@ -37,4 +37,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-sergo = ["project_template/**/*"]
+sergo = ["project_template/**/*", "py.typed", "*.pyi", "**/*.pyi"]
