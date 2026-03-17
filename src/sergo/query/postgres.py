@@ -166,8 +166,14 @@ class PostgresQuery(BaseQuery):
         elif operator == 'overlap':
             if not isinstance(value, (list, tuple, set)):
                 raise ValueError(f"'overlap' operator requires a list, got {type(value).__name__}")
-            condition = f"{safe_field} && %s"
-            self._where_params.append(list(value))
+            values = list(value)
+            if values and isinstance(values[0], int):
+                condition = f"{safe_field} && %s::bigint[]"
+            elif values and isinstance(values[0], str):
+                condition = f"{safe_field} && %s::text[]"
+            else:
+                condition = f"{safe_field} && %s"
+            self._where_params.append(values)
         elif operator == 'istartswith':
             condition = f"{safe_field} ILIKE %s"
             self._where_params.append(f"{self._escape_like(value)}%")
