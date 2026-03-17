@@ -163,6 +163,11 @@ class PostgresQuery(BaseQuery):
         elif operator == 'icontains':
             condition = f"{safe_field} ILIKE %s"
             self._where_params.append(f"%{self._escape_like(value)}%")
+        elif operator == 'overlap':
+            if not isinstance(value, (list, tuple, set)):
+                raise ValueError(f"'overlap' operator requires a list, got {type(value).__name__}")
+            condition = f"{safe_field} && %s"
+            self._where_params.append(list(value))
         elif operator == 'istartswith':
             condition = f"{safe_field} ILIKE %s"
             self._where_params.append(f"{self._escape_like(value)}%")
