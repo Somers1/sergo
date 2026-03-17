@@ -134,8 +134,7 @@ class PostgresConnection:
         safe_columns = ', '.join(
             self._validate_identifier(col) for col in insert_dict.keys()
         )
-        import json as _json
-        values = [_json.dumps(v) if isinstance(v, (list, dict)) else v for v in insert_dict.values()]
+        values = list(insert_dict.values())
         placeholders = ', '.join('%s' for _ in values)
         query = f"INSERT INTO {safe_table} ({safe_columns}) VALUES ({placeholders}) RETURNING id"
         result = self.execute_result(query, *values)

@@ -143,6 +143,12 @@ class JSONField(Field[dict | list]):
     def _to_representation(self, value):
         return value
 
+    def to_db(self, value):
+        import json
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+        return value
+
 
 class ArrayField(Field[list]):
     def _to_internal_value(self, value):
