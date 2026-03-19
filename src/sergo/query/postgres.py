@@ -23,6 +23,7 @@ class PostgresQuery(BaseQuery):
         self._where_params = list(params) if params else []
         self._group_by = None
         self._order_clauses = []
+        self._order_params = []
         self._limit_value = None
         self._offset_value = None
 
@@ -38,6 +39,7 @@ class PostgresQuery(BaseQuery):
         clone._where_params = list(self._where_params)
         clone._group_by = self._group_by
         clone._order_clauses = list(self._order_clauses)
+        clone._order_params = list(getattr(self, '_order_params', []))
         clone._limit_value = self._limit_value
         clone._offset_value = self._offset_value
         return clone
@@ -108,6 +110,9 @@ class PostgresQuery(BaseQuery):
         # ORDER BY
         if self._order_clauses:
             q += ' ORDER BY ' + ', '.join(self._order_clauses)
+            # Similarity ORDER BY has a %s placeholder that needs the vector param
+            if hasattr(self, '_order_params'):
+                all_params.extend(self._order_params)
 
         # LIMIT
         if self._limit_value is not None:
@@ -293,14 +298,41 @@ class PostgresQuery(BaseQuery):
         clone._offset_value = int(offset)
         return clone
 
-    def similar_to(self, field, vector, limit=5):
+    def similar_to(self, field, vector, limit=10, min_similarity=None):
         """Find rows with most similar vectors using pgvector cosine distance (<=>).
+
         Returns results ordered by similarity (closest first).
-        Usage: Model.objects.filter(user_id=1).similar_to('embedding', query_vector, limit=5)"""
+
+        Args:
+            field: Name of the VectorField column
+            vector: Query vector (list of floats)
+            limit: Max results (default 10)
+            min_similarity: Optional 0-1 threshold (0-1). Only return results with
+                           cosine similarity >= this value.
+
+        Usage:
+            # Basic: find 5 most similar
+            results = Memory.objects.filter(user_id=1).similar_to('embedding', query_vec, limit=5)
+
+            # With threshold: only results above 0.7 similarity
+            results = Memory.objects.filter(user_id=1).similar_to('embedding', query_vec, min_similarity=0.7)
+
+            # Chain with other filters
+            results = (Memory.objects
+                .filter(user_id=1, deleted_at__isnull=True)
+                .similar_to('embedding', query_vec, limit=10))
+        """
         clone = self._clone()
         safe_field = self._validate_field_name(field)
+        vec_literal = f'[{",".join(str(v) for v in vector)}]'
+
+        if min_similarity is not None:
+            max_distance = 1.0 - min_similarity
+            clone._where_conditions.append(f"{safe_field} <=> %s <= %s")
+            clone._where_params.extend([vec_literal, max_distance])
+
         clone._order_clauses = [f"{safe_field} <=> %s"]
-        clone._where_params.append(f'[{",".join(str(v) for v in vector)}]')
+        clone._order_params = [vec_literal]
         clone._limit_value = limit
         return clone
 
