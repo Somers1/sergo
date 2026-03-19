@@ -378,14 +378,22 @@ class PostgresQuery(BaseQuery):
             raise ValueError("Invalid update query")
         table = parts[1].strip()
 
+        # Prepare values via field.to_db() if available (e.g. VectorField, JSONField)
+        if self.model and hasattr(self.model, '_meta'):
+            prepared = {}
+            for key, value in kwargs.items():
+                field = self.model._meta.fields.get(key)
+                if field and hasattr(field, 'to_db') and not isinstance(value, str):
+                    prepared[key] = field.to_db(value)
+                else:
+                    prepared[key] = value
+            kwargs = prepared
+
         set_parts = []
         set_values = []
         for key, value in kwargs.items():
             safe_key = self._validate_field_name(key)
             set_parts.append(f"{safe_key} = %s")
-            field = self.model._meta.fields.get(key) if self.model and hasattr(self.model, '_meta') else None
-            if field and hasattr(field, 'to_db'):
-                value = field.to_db(value)
             set_values.append(value)
 
         set_clause = ', '.join(set_parts)

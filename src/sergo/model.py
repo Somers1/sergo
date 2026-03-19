@@ -228,7 +228,6 @@ class Model(metaclass=ModelBase):
 
     def update(self, **kwargs):
         id_field = self._meta.primary_key_field
-        kwargs = self.objects._prepare_values(kwargs)
         return self.objects.filter(**{id_field: getattr(self, id_field)}).update(**kwargs)
 
     def save(self):
